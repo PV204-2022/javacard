@@ -35,7 +35,16 @@ All instructions/calls begin with the "instruction selection process", data rece
 
 ## Algorithms
 
-* *work-in-progress*
+Picked fitting algorithms from [the provided documentation](https://docs.oracle.com/javacard/3.0.5/api/index.html).
+
+* establishment of the secure channel
+  * ellyptical diffie-hellman
+* encryption of the secure channel
+  * some kind of aes
+* media key derivation
+  * pdbkf (based on hash?)
+* media encryption 
+  * some kind of aes again
 
 ## Encountered problems / Questions
 
@@ -60,14 +69,8 @@ Proposed demo order of APDU calls.
   * list all keys
     * returned values depend on how we handle errors
 * *disconnect* (artificially using JcardSIM)
-* *enter DURESS_PIN* (all following calls should fail)
-  * add key1:value1 with appropriate length
-  * add key2:value2 with appropriate length
-  * add key3:value3 with appropriate length
-  * (try to) add key:value with too long value
-  * (try to) add key:value with too long key
-  * list all keys
-    * returned values depend on how we handle errors
+* *enter DURESS_PIN* 
+  * use the same calls, but should fail
 
 ## Current state
 
