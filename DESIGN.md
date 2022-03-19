@@ -55,6 +55,7 @@ Picked fitting algorithms from [the provided documentation](https://docs.oracle.
 * Are we supposed to attempt protection against side-channel attacks?
 * How long the stored value/key can be?
 * Do we assume that all values/keys are strings (or binary)?
+* Aren't we supposed to implement "delete" instruction as well?
 
 ## Proposed APDU demo
 
@@ -74,4 +75,4 @@ Proposed demo order of APDU calls.
 
 ## Current state
 
-Meditative implementation only.
+Meditative implementation only + stuff learned in `cv3`.
