@@ -1,28 +1,25 @@
 package applet;
 
 import javacard.framework.*;
-import javacard.security.RandomData;
+import javacard.security.*;
+import javacardx.*;
 
-public class MainApplet extends Applet implements MultiSelectable
-{
+public class MainApplet extends Applet implements MultiSelectable {
 	private static final short BUFFER_SIZE = 32;
 
 	private byte[] tmpBuffer = JCSystem.makeTransientByteArray(BUFFER_SIZE, JCSystem.CLEAR_ON_DESELECT);
 	private RandomData random;
 
-	public static void install(byte[] bArray, short bOffset, byte bLength) 
-	{
+	public static void install(byte[] bArray, short bOffset, byte bLength) {
 		new MainApplet(bArray, bOffset, bLength);
 	}
 	
-	public MainApplet(byte[] buffer, short offset, byte length)
-	{
+	public MainApplet(byte[] buffer, short offset, byte length)	{
 		random = RandomData.getInstance(RandomData.ALG_SECURE_RANDOM);
 		register();
 	}
 
-	public void process(APDU apdu)
-	{
+	public void process(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
 		byte cla = apduBuffer[ISO7816.OFFSET_CLA];
 		byte ins = apduBuffer[ISO7816.OFFSET_INS];
