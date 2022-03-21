@@ -4,7 +4,7 @@
 
 All instructions/calls begin with the "instruction selection process", data received after is handled in the following manner.
 
-* set(key, value)
+* *instruction* set(key, value)
   * check key has appropriate length
     * exception/trim
   * check data has appropriate length
@@ -13,14 +13,13 @@ All instructions/calls begin with the "instruction selection process", data rece
   * allocate memmory in persistent storage
   * store data
   * *return OK*
-* get(key)
+* *instruction* get(key)
   * check key has appropriate length
     * exception/trim
   * get data
   * decrypt data with media key
   * *return data*
-* list()
-  * **If keys aren't encrypted we need to authenticate this somehow.**
+* *instruction* list()
   * *return list of all keys*
 
 ### Communication initialization
@@ -48,14 +47,20 @@ Picked fitting algorithms from [the provided documentation](https://docs.oracle.
 
 ## Encountered problems / Questions
 
+During the design phase (as well as the little implementation we have done), we have encountered the following issues/decisions. The answeres/solutions provided in this document might be subject to change during the Phase 3.
+
 * **We need to test this on a physical card, which versions are supported by the cards in the lab?**
 * Do we encrypt keys as well? (probably not)
+  * No, arbitrary decision.
 * Will all keys have constant length padded by zeros, or will we use just-enough?
 * Are using key-derivation or hashes for `PIN`/`DURESS_PIN`?
 * Are we supposed to attempt protection against side-channel attacks?
 * How long the stored value/key can be?
+  * Changeable, in `Configuration.java`
 * Do we assume that all values/keys are strings (or binary)?
 * Aren't we supposed to implement "delete" instruction as well?
+* Describe the authentication process in detail
+  * How does it prevent listing of keys? (since they're not encrypted)
 
 ## Proposed APDU demo
 
@@ -75,4 +80,4 @@ Proposed demo order of APDU calls.
 
 ## Current state
 
-Meditative implementation only + stuff learned in `cv3`.
+Due to slight planning oversight on our part, we currently do not have a working prototype. However, ...
