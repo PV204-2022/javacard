@@ -45,7 +45,7 @@ public class SecretList {
       secrets[i].getKey(currentKey);
       
       if (currentKey == key) {
-        secrets[i].setKey(src);
+        secrets[i].setValue(src);
       }
     }
   }
