@@ -6,33 +6,60 @@ import javacard.framework.Util;
  * Stores exactly one value
  */
 public class SecretItem {
-  private final bytes[] value;
-  
+  private final byte[] key;
+  private final byte[] value;
+  private int valueLength = 0;
+  private int keyLength = 0;
+
   /**
    * Just a basic constructor
-   *
    */
   public SecretItem() {
-    value = new bytes[Configuration.SECRET_VALUE_MAX_LENGTH];
+    key = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
+    value = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
   }
 
   /**
-   * A Getter
-   * @param dest - Where do we put it
+   * A Getter for value attribute
+   * @param dst - Where do we put it
    */
   public void getValue(byte[] dst) {
-    Util.arrayCopy(value, (short) 0, dst, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH);
+    // length is always the same
+    // no offset, no need for them yet
+    Util.arrayCopyNonAtomic(value, (short) 0, dst, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH);
   }
 
   /**
-   * A Setter
-   * @param src - What do we store
+   * A Getter for key attribute
+   * @param dst - Where do we put it
+   */
+  public void getKey(byte[] dst) {
+    Util.arrayCopyNonAtomic(key, (short) 0, dst, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
+  }
+
+  /**
+   * A Setter for value attribute
+   * @param src - What do we set to
    */
   public void setValue(byte[] src) {
-    if (src.length > SECRET_VALUE_MAX_LENGTH) {
-      throw new UserException();
+    if (src.length > Configuration.SECRET_VALUE_MAX_LENGTH) {
+      throw new RuntimeException("Value is too long!");
     }
-    
-    Util.arrayCopy(src, (short) 0, value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH);
+
+    this.valueLength = src.length;
+    Util.arrayCopyNonAtomic(src, (short) 0, value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH);
+  }
+
+  /**
+   * A Setter for key attribute
+   * @param src - What do we set to
+   */
+  public void setKey(byte[] src) {
+    if (src.length > Configuration.SECRET_KEY_MAX_LENGHT) {
+      throw new RuntimeException("Key is too long!");
+    }
+
+    this.keyLength = src.length;
+    Util.arrayCopyNonAtomic(src, (short) 0, key, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
   }
 }
