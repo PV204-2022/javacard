@@ -64,4 +64,24 @@ public class SecretList {
       Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), Configuration.SECRET_KEY_MAX_LENGHT);
     }
   }
+
+  /**
+   * Populates the first empty Secret available
+   * @param key - How is it going to be named
+   * @param value - What do we store
+   * @return - Which index is it stored at
+   */
+  public int createSecret(byte[] key, byte[] value) {
+    for (int i = 0; i < secrets.length; i++) {
+      // this is considered "Empty"
+      if (secrets[i].getValueLength() == 0 && secrets[i].getKeyLength() == 0) {
+        secrets[i].setKey(key);
+        secrets[i].setValue(value);
+
+        return i;
+      };
+    }
+
+    return -1;
+  }
 }

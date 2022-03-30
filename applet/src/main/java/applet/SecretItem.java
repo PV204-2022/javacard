@@ -62,4 +62,16 @@ public class SecretItem {
     this.keyLength = src.length;
     Util.arrayCopyNonAtomic(src, (short) 0, key, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
   }
+
+  /**
+   * A Getter
+   * @return used length of value
+   */
+  public int getValueLength() {
+    return valueLength;
+  }
+
+  public int getKeyLength() {
+    return keyLength;
+  }
 }
