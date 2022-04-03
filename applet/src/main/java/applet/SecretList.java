@@ -1,6 +1,7 @@
 package applet;
 
 import javacard.framework.Util;
+import jdk.nashorn.internal.runtime.regexp.joni.Config;
 
 /**
  * One instance stores all secrets on a particular card
@@ -12,7 +13,7 @@ public class SecretList {
   /**
    * Just a basic constructor
    */
-  public SecretList(short capacity) {
+  public SecretList() {
     secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
   }
 
