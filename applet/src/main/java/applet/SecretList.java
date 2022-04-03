@@ -1,7 +1,6 @@
 package applet;
 
 import javacard.framework.Util;
-import jdk.nashorn.internal.runtime.regexp.joni.Config;
 
 /**
  * One instance stores all secrets on a particular card
@@ -23,7 +22,7 @@ public class SecretList {
    * @param dst - Where to put it
    */
   public void getSecret(byte[] key, byte[] dst) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
+    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
 
     for (int i = 0; i < secrets.length; i++) {
       secrets[i].getKey(currentKey);
@@ -40,7 +39,7 @@ public class SecretList {
    * @param src - To what value
    */
   public void setSecret(byte[] key, byte[] value, byte[] src) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
+    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
     
     for (int i = 0; i < secrets.length; i++) {
       secrets[i].getKey(currentKey);
@@ -56,13 +55,13 @@ public class SecretList {
    * @param dst - Where to put it
    */
   public void listSecrets(byte[] dst) {
-    dst = new byte[Configuration.SECRET_KEY_MAX_LENGHT * Configuration.SECRET_MAX_COUNT];
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
+    dst = new byte[Configuration.SECRET_KEY_MAX_LENGTH * Configuration.SECRET_MAX_COUNT];
+    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
     
     for (int i = 0; i < secrets.length; i++) {
       secrets[i].getKey(currentKey);
       // fill the "dst" array by shifting offset in each iteration
-      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), Configuration.SECRET_KEY_MAX_LENGHT);
+      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), Configuration.SECRET_KEY_MAX_LENGTH);
     }
   }
 

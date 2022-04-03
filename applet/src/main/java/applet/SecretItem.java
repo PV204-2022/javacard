@@ -15,7 +15,7 @@ public class SecretItem {
    * Just a basic constructor
    */
   public SecretItem() {
-    key = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
+    key = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
     value = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
   }
 
@@ -34,7 +34,7 @@ public class SecretItem {
    * @param dst - Where do we put it
    */
   public void getKey(byte[] dst) {
-    Util.arrayCopyNonAtomic(key, (short) 0, dst, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
+    Util.arrayCopyNonAtomic(key, (short) 0, dst, (short) 0, Configuration.SECRET_KEY_MAX_LENGTH);
   }
 
   /**
@@ -55,12 +55,12 @@ public class SecretItem {
    * @param src - What do we set to
    */
   public void setKey(byte[] src) {
-    if (src.length > Configuration.SECRET_KEY_MAX_LENGHT) {
+    if (src.length > Configuration.SECRET_KEY_MAX_LENGTH) {
       throw new RuntimeException("Key is too long!");
     }
 
     this.keyLength = src.length;
-    Util.arrayCopyNonAtomic(src, (short) 0, key, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
+    Util.arrayCopyNonAtomic(src, (short) 0, key, (short) 0, Configuration.SECRET_KEY_MAX_LENGTH);
   }
 
   /**
@@ -71,7 +71,9 @@ public class SecretItem {
     return valueLength;
   }
 
-  public int getKeyLength() {
-    return keyLength;
-  }
+  /**
+   * A Getter
+   * @return used length of key
+   */
+  public int getKeyLength() { return keyLength; }
 }
