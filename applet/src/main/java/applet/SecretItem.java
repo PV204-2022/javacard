@@ -8,10 +8,9 @@ import javacard.framework.Util;
  * Stores exactly one value
  */
 public class SecretItem {
-  private byte key;
+  private byte key = 0;
   private final byte[] value;
   private byte valueLength = 0;
-  private byte keyLength = 0;
 
   /**
    * Just a basic constructor
@@ -57,6 +56,11 @@ public class SecretItem {
    */
   public void setKey(byte src) {
     key = src;
+  }
+
+  public void deleteValue() {
+    Util.arrayFillNonAtomic(value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, (byte) 0);
+    this.valueLength = 0;
   }
 
   /**

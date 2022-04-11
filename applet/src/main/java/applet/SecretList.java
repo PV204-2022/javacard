@@ -1,5 +1,7 @@
 package applet;
 
+import javacard.framework.ISO7816;
+import javacard.framework.ISOException;
 import javacard.framework.Util;
 
 /**
@@ -24,19 +26,20 @@ public class SecretList {
    * @param key - Which key to retrieve
    * @param dst - Where to put it
    */
-  public void getSecret(byte key, byte[] dst) {
+  public byte getSecret(byte key, byte[] dst) {
     for (byte i = 0; i < secrets.length; i++) {
       if (secrets[i].getKey() == key) {
         secrets[i].getValue(dst);
-        return;
+        return secrets[i].getValueLength();
       }
     }
+    return -1;
   }
 
   /**
    * A Setter for secrets
    * @param key - Which key to set
-   * @param src - To what value
+   * @param value - To what value
    */
   public boolean setSecret(byte key, byte[] value) {
     for (byte i = 0; i < secrets.length; i++) {
@@ -52,14 +55,23 @@ public class SecretList {
    * A basic list method
    * @param dst - Where to put it
    */
-  public void listSecrets(byte[] dst) {
-    dst = new byte[Configuration.SECRET_MAX_COUNT];
-
+  public byte listSecrets(byte[] dst) {
     for (byte i = 0; i < secrets.length; i++) {
-      byte[] currentKey = new byte[] {secrets[i].getKey()};
+      byte[] currentKey = new byte[] { secrets[i].getKey() };
       // fill the "dst" array by shifting offset in each iteration
-      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), (byte) 1);
+      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) i, (byte) 1);
     }
+    return (byte) secrets.length;
+  }
+
+  public byte deleteSecret(byte key) {
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key) {
+        secrets[i].setKey((byte) 0);
+        secrets[i].deleteValue();
+      }
+    }
+    return 1;
   }
 
   /**
@@ -71,7 +83,7 @@ public class SecretList {
   public byte createSecret(byte key, byte[] value) {
     for (byte i = 0; i < secrets.length; i++) {
       // this is considered "Empty"
-      if (secrets[i].getValueLength() == 0) {
+      if (secrets[i].getKey() == 0 && secrets[i].getValueLength() == 0) {
         secrets[i].setKey(key);
         secrets[i].setValue(value);
 

@@ -8,6 +8,8 @@ import cardTools.Util;
 import javax.smartcardio.CommandAPDU;
 import javax.smartcardio.ResponseAPDU;
 import java.io.ByteArrayOutputStream;
+import java.io.Console;
+import java.util.Arrays;
 
 public class SimpleAPDU {
     private static String APPLET_AID = "73696d706c656170706c6574";
@@ -35,7 +37,7 @@ public class SimpleAPDU {
     }
 
     public void setup(CARD_TYPE cardType) throws Exception {
-        cardManager = new CardManager(true, Util.hexStringToByteArray(APPLET_AID));
+        cardManager = new CardManager(false, Util.hexStringToByteArray(APPLET_AID));
         final RunConfig runConfig = RunConfig.getDefaultConfig();
         if (cardType == CARD_TYPE.SIMULATED) {
             runConfig.setAppletToSimulate(MainApplet.class);
@@ -54,22 +56,42 @@ public class SimpleAPDU {
     }
 
     public void demo() throws Exception {
-        setCmd((byte) 0x01, Util.hexStringToByteArray("414243444546"));
-        getCmd((byte) 0x01);
-        setCmd((byte) 0x02, Util.hexStringToByteArray("FFFFFFFF"));
+        setCmd((byte) 0x01, Util.hexStringToByteArray("414243444546FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"));
+        setCmd((byte) 0x02, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
+        setCmd((byte) 0x04, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
+        setCmd((byte) 0x7F, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
+
+        System.out.print(getCmd((byte) 0x04));
         getCmd((byte) 0x02);
+        getCmd((byte) 0x01);
+        getCmd((byte) 0x7F);
+        listCmd();
+
+        delCmd((byte) 0x04);
+        listCmd();
+
+        getCmd((byte) 0x04);
+
+        delCmd((byte) 0x01);
+        listCmd();
+
+        delCmd((byte) 0x02);
+        listCmd();
     }
 
-    public void getCmd(byte key) throws Exception {
+    public byte[] getCmd(byte key) throws Exception {
         ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
         commandStream.write(Util.hexStringToByteArray(STR_APDU_GET));
         commandStream.write(key);
-        commandStream.write(0);
-        commandStream.write(0);
+        commandStream.write(new byte[] { 0, 0 });
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
         byte[] data = response.getData();
-
-        System.out.println(response);
+        for (int i = data.length - 1; i >= 0; i--) {
+            if (data[i] != 0) {
+                return Arrays.copyOf(data, i);
+            }
+        }
+        return null;
     }
 
     public void setCmd(byte key, byte[] value) throws Exception {
@@ -79,21 +101,28 @@ public class SimpleAPDU {
         commandStream.write(0);
         commandStream.write(value.length);
         commandStream.write(value);
-        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(new byte[] {-80, 81, 1, 0, 6, 65, 66, 67, 68, 69, 70, 1}));
+        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
         byte[] data = response.getData();
-
-        System.out.println(response);
     }
 
     public void listCmd() throws Exception {
+        ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
+        commandStream.write(Util.hexStringToByteArray(STR_APDU_LIST));
+        commandStream.write(new byte[] { 0, 0, 0 });
+        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
+        byte[] data = response.getData();
+    }
 
+    public void delCmd(byte key) throws Exception {
+        ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
+        commandStream.write(Util.hexStringToByteArray(STR_APDU_DEL));
+        commandStream.write(key);
+        commandStream.write(new byte[] { 0, 0 });
+        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
+        byte[] data = response.getData();
     }
 
     public void authCmd() throws Exception {
-
-    }
-
-    public void delCmd() throws Exception {
 
     }
 }

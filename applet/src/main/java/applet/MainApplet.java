@@ -51,8 +51,12 @@ public class MainApplet extends javacard.framework.Applet {
 	 */
 	public MainApplet(byte[] buffer, short offset, byte length)	{
 		// initialize media encryption stuff
+		RandomData randomGen = RandomData.getInstance(RandomData.ALG_KEYGENERATION);
+		byte[] randomKey = new byte[32];
+		randomGen.nextBytes(randomKey, (short) 0, (short) 32);
+
 		mediaKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_128, false);
-		mediaKey.setKey(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, (short) 0);
+		mediaKey.setKey(randomKey, (short) 0);
 		mediaCipherEnc = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
 		mediaCipherDec = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
 
@@ -94,6 +98,9 @@ public class MainApplet extends javacard.framework.Applet {
 					case INS_LIST:
 						List(apdu);
 						break;
+					case INS_DEL:
+						Delete(apdu);
+						break;
 					default:
 						ISOException.throwIt(ISO7816.SW_INS_NOT_SUPPORTED);
 						break;
@@ -133,6 +140,10 @@ public class MainApplet extends javacard.framework.Applet {
 	private void Set(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
 		short dataLen = apdu.getIncomingLength();
+		if (dataLen > Configuration.SECRET_VALUE_MAX_LENGTH) {
+			ISOException.throwIt(ISO7816.SW_WRONG_DATA);
+		}
+
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
 		mediaCipherEnc.init(mediaKey, Cipher.MODE_ENCRYPT);
@@ -140,11 +151,14 @@ public class MainApplet extends javacard.framework.Applet {
 		short bytesWritten = mediaCipherEnc.doFinal(apduBuffer, ISO7816.OFFSET_CDATA, Configuration.SECRET_VALUE_MAX_LENGTH, temp, (short) 0);
 		byte[] tempSized = new byte[bytesWritten];
 		Util.arrayCopy(temp, (short) 0, tempSized, (short) 0, bytesWritten);
+		if (key <= 0) {
+			ISOException.throwIt(ISO7816.SW_WRONG_DATA);
+		}
 		if (!storage.setSecret(key, tempSized)) {
 			storage.createSecret(key, tempSized);
 		}
 
-		short offset = (short) (ISO7816.OFFSET_CDATA + dataLen + 1);
+		short offset = (short) (ISO7816.OFFSET_CDATA + dataLen);
 		Util.arrayCopy(new byte[] { (byte) bytesWritten }, (short) 0, apduBuffer, offset, (short) 1);
 		apdu.setOutgoingAndSend(offset, (short) 1);
 	}
@@ -158,9 +172,16 @@ public class MainApplet extends javacard.framework.Applet {
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
 		byte[] temp = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
-		storage.getSecret(key, temp);
-		mediaCipherDec.init(mediaKey, Cipher.MODE_ENCRYPT);
-		short bytesWritten = mediaCipherDec.doFinal(temp, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, apduBuffer, ISO7816.OFFSET_CDATA);
+		byte length = storage.getSecret(key, temp);
+		if (length < 0) {
+			short offset = (short) (ISO7816.OFFSET_CDATA);
+			Util.arrayCopy(new byte[] { (byte) 0 }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1);
+			apdu.setOutgoingAndSend(offset, (short) 1);
+			return;
+		}
+
+		mediaCipherDec.init(mediaKey, Cipher.MODE_DECRYPT);
+		short bytesWritten = mediaCipherDec.doFinal(temp, (short) 0, length, apduBuffer, ISO7816.OFFSET_CDATA);
 
 		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesWritten);
 	}
@@ -172,12 +193,24 @@ public class MainApplet extends javacard.framework.Applet {
 	private void List(APDU apdu) {
 		// get the buffer with incoming APDU
 		byte[] apduBuffer = apdu.getBuffer();
-		short dataLen = apdu.setIncomingAndReceive();
 
-		//storage.listSecrets();
+		byte [] temp = new byte[Configuration.SECRET_MAX_COUNT];
+		byte bytesWritten = storage.listSecrets(temp);
+		Util.arrayCopy(temp, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, bytesWritten);
 
-		return;
+		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesWritten);
 	}
+
+	private void Delete(APDU apdu) {
+		// get the buffer with incoming APDU
+		byte[] apduBuffer = apdu.getBuffer();
+		byte key = apduBuffer[ISO7816.OFFSET_P1];
+
+		byte status = storage.deleteSecret(key);
+		Util.arrayCopy(new byte[] { (byte) status }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1);
+		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, (short) 1);
+	}
+
 
 	/**
 	 * Basic (duress) PIN logic
