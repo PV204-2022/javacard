@@ -7,8 +7,11 @@ import javacardx.crypto.*;
 public class MainApplet extends javacard.framework.Applet {
 	// storage for all key:value pairs, capacity is defined in "Configuration" class
 	private SecretList storage = new SecretList();
-	// PINs
+	// PINs (so that it cannot be easily flipped)
 	private CustomPIN pin = null;
+	private byte authenticated = AUTH_FALSE;
+	final static byte AUTH_TRUE = (byte) 0xf0e9;
+	final static byte AUTH_FALSE = (byte) 0x1111;
 	// SecureChannel related stuff
 	private Cipher mediaCipherEnc = null;
 	private Cipher mediaCipherDec = null;
@@ -68,12 +71,6 @@ public class MainApplet extends javacard.framework.Applet {
 
 	public void process(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
-		short dataLen = apdu.setIncomingAndReceive();
-
-		// byte cla = apduBuffer[ISO7816.OFFSET_CLA];
-		// byte ins = apduBuffer[ISO7816.OFFSET_INS];
-		// short lc = (short)apduBuffer[ISO7816.OFFSET_LC];
-		// short p2 = (short)apduBuffer[ISO7816.OFFSET_P2];
 
 		// ignore the applet select command dispatched to the process
 		if (selectingApplet()) {
@@ -83,10 +80,15 @@ public class MainApplet extends javacard.framework.Applet {
 		// APDU instruction parser
 		try {
 			if (apduBuffer[ISO7816.OFFSET_CLA] == CLA_MAINAPPLET) {
-				// verify PIN, if duress, then nuke
-				// verifyPIN(apdu);
+				// in order to continue, one needs to be authenticated (send correct PIN)
+				if (authenticated != AUTH_TRUE && apduBuffer[ISO7816.OFFSET_INS] != INS_AUTH) {
+					ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
+				}
 
 				switch (apduBuffer[ISO7816.OFFSET_INS]) {
+					case INS_AUTH:
+						verifyPIN(apdu);
+						break;
 					case INS_SET:
 						Set(apdu);
 						break;
@@ -187,14 +189,20 @@ public class MainApplet extends javacard.framework.Applet {
 		byte[] apduBuffer = apdu.getBuffer();
 		short dataLen = apdu.setIncomingAndReceive();
 		byte[] pinValue = null;
-		Util.arrayCopy(apduBuffer, (short) ISO7816.OFFSET_CDATA, pinValue, (short) 0, dataLen);
+		Util.arrayCopy(apduBuffer, ISO7816.OFFSET_CDATA, pinValue, (short) 0, dataLen);
 
 		switch (pin.check(pinValue, (byte) dataLen)) {
 			case CustomPIN.PIN_STATUS_DURESS:
 				mediaKey.clearKey();
+				authenticated = AUTH_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 			case CustomPIN.PIN_STATUS_INCORRECT:
+				authenticated = AUTH_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
+			case CustomPIN.PIN_STATUS_CORRECT:
+				authenticated = AUTH_TRUE;
+				Util.arrayCopyNonAtomic(pinValue, ISO7816.OFFSET_CDATA, apduBuffer, (short) 0, dataLen);
+				apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, dataLen);
 		}
 	}
 
