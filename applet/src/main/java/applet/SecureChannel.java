@@ -2,31 +2,35 @@ package applet;
 
 import javacard.framework.APDU;
 import javacard.framework.ISO7816;
-import javacard.framework.Util;
 import javacard.security.*;
 import javacardx.crypto.*;
 
 /**
  * Class for management of communication between APDU and Applet
+ *   Proposed usage: run "establish" on card connect, keep instance as applet attribute, use "encrypt"/"decrypt" on each apduBuffer
  */
 public class SecureChannel {
     private KeyPair keyPair;
     private PrivateKey privateKey;
     private PublicKey publicKey;
     private KeyAgreement keyAgreement;
+    private byte[] sharedSecret;
+    private AESKey derivedkey;
 
     /**
      * A basic constructor
      */
     public SecureChannel() {
-        keyPair = new KeyPair(KeyPair.ALG_EC_FP, KeyBuilder.LENGTH_EC_F2M_163);
+        keyPair = new KeyPair(KeyPair.ALG_RSA, KeyBuilder.LENGTH_RSA_2048);
         keyPair.genKeyPair();
-
-        keyAgreement = KeyAgreement.getInstance(KeyAgreement.ALG_EC_SVDP_DH, false);
-        keyAgreement.init(keyPair.getPrivate());
-
         privateKey = keyPair.getPrivate();
         publicKey = keyPair.getPublic();
+
+        keyAgreement = KeyAgreement.getInstance(KeyAgreement.ALG_DH_PLAIN, false);
+        keyAgreement.init(keyPair.getPrivate());
+
+        sharedSecret = new byte[publicKey.getSize()];
+        derivedkey = (AESKey) KeyBuilder.buildKey(KeyBuilder.ALG_TYPE_AES, KeyBuilder.LENGTH_AES_128, false);
     }
 
     /**
@@ -34,52 +38,38 @@ public class SecureChannel {
      * @param apdu - an APDU
      */
     public void establish(APDU apdu) {
-        // DISCLAIMER: following section is borrowed from StackOverflow and needs to be adapter
-        byte[] buf = apdu.getBuffer();
-        byte temp[] = new byte[100];
-        byte secret[] = new byte[100];
-        byte size = buf[ISO7816.OFFSET_LC];
+        byte[] apduBuffer = apdu.getBuffer();
 
-        Util.arrayCopy(buf, ISO7816.OFFSET_CDATA, temp, (byte) 0, size);
-
-        // the public key is in temp
-        short len = dh.generateSecret(temp, (byte) 0, size, secret, (byte) 0);
-
-        Util.arrayCopy(temp, (byte) 0, buf, ISO7816.OFFSET_CDATA, size);
-        //Util.arrayCopy(secret, (byte) 0, buf, ISO7816.OFFSET_CDATA, len);
-        apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, size);
+        // publicData - buffer holding the public data of the second party
+        // publicOffset - offset into the publicData buffer at which the data begins
+        // publicLength - byte length of the public data
+        // secret - buffer to hold the secret output
+        // secretOffset - offset into the secret array at which to start writing the secret
+        keyAgreement.generateSecret(apduBuffer, ISO7816.OFFSET_CDATA, publicKey.getSize(), sharedSecret, (short) 0);
+        derivedkey.setKey(sharedSecret, (short) 0);
     }
 
-
     /**
-     *
+     * Encrypt data via derivedKey
      * @param src - data to be encrypted
      * @param dst - where to store the output
      */
     public void encrypt(byte[] src, byte[] dst) {
+        Cipher cipherEnc = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
+        cipherEnc.init(derivedkey, Cipher.MODE_ENCRYPT);
 
+        cipherEnc.doFinal(src, (short) 0, (short) src.length, dst, (short) 0);
     }
 
     /**
-     *
+     * Decrypt data via derivedKey
      * @param src - to be decrypted
-     * @param dst - where to store the ouput
+     * @param dst - where to store the output
      */
     public void decrypt(byte[] src, byte[] dst) {
+        Cipher cipherDec = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
+        cipherDec.init(derivedkey, Cipher.MODE_DECRYPT);
 
-    }
-
-    /**
-     * Get our DH thingy (to be sent to the other party)
-     */
-    public void getPublicDH(byte[] dst) {
-        Util.arrayCopyNonAtomic(this.secret, (short) 0, dst, (short) 0, (byte) 100);
-    }
-
-    /**
-     * Set public DH thingy received from the other party
-     */
-    public void setPublicDH() {
-
+        cipherDec.doFinal(src, (short) 0, (short) src.length, dst, (short) 0);
     }
 }
