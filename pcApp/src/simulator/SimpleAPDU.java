@@ -9,6 +9,7 @@ import javax.smartcardio.CommandAPDU;
 import javax.smartcardio.ResponseAPDU;
 import java.io.ByteArrayOutputStream;
 import java.io.Console;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class SimpleAPDU {
@@ -19,6 +20,8 @@ public class SimpleAPDU {
     private static final String STR_APDU_LIST = "B052";
     private static final String STR_APDU_AUTH = "B053";
     private static final String STR_APDU_DEL = "B054";
+
+    private static final int APDU_SUCCESS = 0x9000;
 
     private enum CARD_TYPE {
         SIMULATED, PHYSICAL
@@ -56,27 +59,36 @@ public class SimpleAPDU {
     }
 
     public void demo() throws Exception {
-        setCmd((byte) 0x01, Util.hexStringToByteArray("414243444546"));
-        setCmd((byte) 0x02, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
-        setCmd((byte) 0x04, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
-        setCmd((byte) 0x7F, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
+        // Add four key:value pairs.
+        setCmdPrint((byte) 0x01, Util.hexStringToByteArray("313233343536")); // 123456
+        setCmdPrint((byte) 0x02, Util.hexStringToByteArray("30313233343536373839414243444546")); // 0123456789ABCDEF
+        setCmdPrint((byte) 0x04, Util.hexStringToByteArray("414243444546")); // ABCDEF
+        setCmdPrint((byte) 0x7F, Util.hexStringToByteArray("616263646566")); // abcdef
 
-        System.out.print(getCmd((byte) 0x04));
-        getCmd((byte) 0x02);
-        getCmd((byte) 0x01);
-        getCmd((byte) 0x7F);
-        listCmd();
+        // Use too long value.
+        byte[] tooLongValue = new byte[65];
+        Arrays.fill(tooLongValue, (byte) 0x30);
+        setCmdPrint((byte) 0x10, tooLongValue);
 
-        delCmd((byte) 0x04);
-        listCmd();
+        // Use too big key.
+        setCmdPrint((byte) 0x80, Util.hexStringToByteArray("616263646566"));
 
-        getCmd((byte) 0x04);
+        getCmdPrint((byte) 0x04);
+        getCmdPrint((byte) 0x02);
+        getCmdPrint((byte) 0x01);
+        getCmdPrint((byte) 0x7F);
 
-        delCmd((byte) 0x01);
-        listCmd();
+        listCmdPrint();
+        delCmdPrint((byte) 0x04);
+        listCmdPrint();
 
-        delCmd((byte) 0x02);
-        listCmd();
+        delCmdPrint((byte) 0x04);
+
+        delCmdPrint((byte) 0x01);
+        listCmdPrint();
+
+        delCmdPrint((byte) 0x02);
+        listCmdPrint();
     }
 
     public byte[] getCmd(byte key) throws Exception {
@@ -88,13 +100,21 @@ public class SimpleAPDU {
         byte[] data = response.getData();
         for (int i = data.length - 1; i >= 0; i--) {
             if (data[i] != 0) {
-                return Arrays.copyOf(data, i);
+                return Arrays.copyOf(data, i + 1);
             }
         }
         return null;
     }
 
-    public void setCmd(byte key, byte[] value) throws Exception {
+    public void getCmdPrint(byte key) throws Exception {
+        System.out.println(
+            "Get Value for Key " +
+            String.format("%02X: ", key) +
+            new String(getCmd(key), StandardCharsets.UTF_8)
+        );
+    }
+
+    public boolean setCmd(byte key, byte[] value) throws Exception {
         ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
         commandStream.write(Util.hexStringToByteArray(STR_APDU_SET));
         commandStream.write(key);
@@ -102,15 +122,48 @@ public class SimpleAPDU {
         commandStream.write(value.length);
         commandStream.write(value);
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
-        byte[] data = response.getData();
+        return response.getSW() == APDU_SUCCESS;
     }
 
-    public void listCmd() throws Exception {
+    public void setCmdPrint(byte key, byte[] value) throws Exception {
+        boolean result = setCmd(key, value);
+        System.out.print(
+            "Set Key:Value to " +
+            String.format("%02X:", key) +
+            new String(value, StandardCharsets.UTF_8)
+        );
+        if (result) {
+            System.out.println(" SUCCESS");
+        } else {
+            System.out.println(" FAILED");
+        }
+    }
+
+    public byte[] listCmd() throws Exception {
         ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
         commandStream.write(Util.hexStringToByteArray(STR_APDU_LIST));
         commandStream.write(new byte[] { 0, 0, 0 });
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
         byte[] data = response.getData();
+
+        byte[] validKeys = new byte[data.length];
+        int count = 0;
+        for (int i = data.length - 1; i >= 0; i--) {
+            if (data[i] != 0) {
+                validKeys[count] = data[i];
+                count++;
+            }
+        }
+        return Arrays.copyOf(validKeys, count);
+    }
+
+    public void listCmdPrint() throws Exception {
+        byte[] listResult = listCmd();
+        System.out.print("List of Keys: ");
+        for (byte key : listResult) {
+            System.out.print(String.format("%02X ", key));
+        }
+        System.out.println("");
     }
 
     public void delCmd(byte key) throws Exception {
@@ -120,6 +173,11 @@ public class SimpleAPDU {
         commandStream.write(new byte[] { 0, 0 });
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
         byte[] data = response.getData();
+    }
+
+    public void delCmdPrint(byte key) throws Exception {
+        delCmd(key);
+        System.out.println("Delete Key " + String.format("%02X ", key));
     }
 
     public void authCmd() throws Exception {
