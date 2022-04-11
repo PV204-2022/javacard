@@ -13,7 +13,10 @@ public class SecretList {
    * Just a basic constructor
    */
   public SecretList() {
-    secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
+      secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
+      for (byte i = 0; i < Configuration.SECRET_MAX_COUNT; i++) {
+          secrets[i] = new SecretItem();
+      }
   }
 
   /**
@@ -21,14 +24,11 @@ public class SecretList {
    * @param key - Which key to retrieve
    * @param dst - Where to put it
    */
-  public void getSecret(byte[] key, byte[] dst) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
-
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
-
-      if (currentKey == key) {
+  public void getSecret(byte key, byte[] dst) {
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key) {
         secrets[i].getValue(dst);
+        return;
       }
     }
   }
@@ -38,16 +38,14 @@ public class SecretList {
    * @param key - Which key to set
    * @param src - To what value
    */
-  public void setSecret(byte[] key, byte[] value, byte[] src) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
-    
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
-      
-      if (currentKey == key) {
-        secrets[i].setValue(src);
+  public boolean setSecret(byte key, byte[] value) {
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key) {
+        secrets[i].setValue(value);
+        return true;
       }
     }
+    return false;
   }
 
   /**
@@ -55,13 +53,12 @@ public class SecretList {
    * @param dst - Where to put it
    */
   public void listSecrets(byte[] dst) {
-    dst = new byte[Configuration.SECRET_KEY_MAX_LENGTH * Configuration.SECRET_MAX_COUNT];
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGTH];
-    
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
+    dst = new byte[Configuration.SECRET_MAX_COUNT];
+
+    for (byte i = 0; i < secrets.length; i++) {
+      byte[] currentKey = new byte[] {secrets[i].getKey()};
       // fill the "dst" array by shifting offset in each iteration
-      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), Configuration.SECRET_KEY_MAX_LENGTH);
+      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), (byte) 1);
     }
   }
 
@@ -71,10 +68,10 @@ public class SecretList {
    * @param value - What do we store
    * @return - Which index is it stored at
    */
-  public int createSecret(byte[] key, byte[] value) {
-    for (int i = 0; i < secrets.length; i++) {
+  public byte createSecret(byte key, byte[] value) {
+    for (byte i = 0; i < secrets.length; i++) {
       // this is considered "Empty"
-      if (secrets[i].getValueLength() == 0 && secrets[i].getKeyLength() == 0) {
+      if (secrets[i].getValueLength() == 0) {
         secrets[i].setKey(key);
         secrets[i].setValue(value);
 

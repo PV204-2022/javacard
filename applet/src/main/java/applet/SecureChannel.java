@@ -5,7 +5,7 @@ package applet;
  */
 public class SecureChannel {
 
-  public SecureChannel {}
+  public SecureChannel() {}
 
   /**
    *
