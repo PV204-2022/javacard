@@ -54,7 +54,9 @@ public class MainApplet extends javacard.framework.Applet {
 		mediaKey = (AESKey) KeyBuilder.buildKey(KeyBuilder.TYPE_AES, KeyBuilder.LENGTH_AES_128, false);
 		mediaKey.setKey(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, (short) 0);
 		mediaCipherEnc = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
+		mediaCipherDec.init(mediaKey, Cipher.MODE_ENCRYPT);
 		mediaCipherDec = Cipher.getInstance(Cipher.ALG_AES_BLOCK_128_CBC_NOPAD, false);
+		mediaCipherDec.init(mediaKey, Cipher.MODE_DECRYPT);
 
 		// initialize PINs
 		pin = new CustomPIN(Configuration.PIN_MAX_ATTEMPTS, Configuration.PIN_MAX_LENGTH);
@@ -128,14 +130,13 @@ public class MainApplet extends javacard.framework.Applet {
 
 	/**
 	 * Set provided key to the provided value
-	 * @param
+	 * @param apdu - an apdu
 	 */
 	private void Set(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
 		short dataLen = apdu.getIncomingLength();
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
-		mediaCipherEnc.init(mediaKey, Cipher.MODE_ENCRYPT);
 		byte[] temp = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
 		short bytesWritten = mediaCipherEnc.doFinal(apduBuffer, ISO7816.OFFSET_CDATA, Configuration.SECRET_VALUE_MAX_LENGTH, temp, (short) 0);
 		byte[] tempSized = new byte[bytesWritten];
@@ -159,10 +160,9 @@ public class MainApplet extends javacard.framework.Applet {
 
 		byte[] temp = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
 		storage.getSecret(key, temp);
-		mediaCipherDec.init(mediaKey, Cipher.MODE_ENCRYPT);
-		short bytesWritten = mediaCipherDec.doFinal(temp, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, apduBuffer, ISO7816.OFFSET_CDATA);
+		short bytesRead = mediaCipherDec.doFinal(temp, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, apduBuffer, ISO7816.OFFSET_CDATA);
 
-		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesWritten);
+		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesRead);
 	}
 
 	/**
@@ -170,13 +170,13 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu
 	 */
 	private void List(APDU apdu) {
-		// get the buffer with incoming APDU
 		byte[] apduBuffer = apdu.getBuffer();
-		short dataLen = apdu.setIncomingAndReceive();
 
-		//storage.listSecrets();
+		byte[] temp = new byte[Configuration.SECRET_MAX_COUNT];
+		storage.listSecrets(temp);
+		Util.arrayCopyNonAtomic(temp, (short) 0, apduBuffer, (short) 0, Configuration.SECRET_MAX_COUNT);
 
-		return;
+		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, Configuration.SECRET_MAX_COUNT);
 	}
 
 	/**
