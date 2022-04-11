@@ -56,7 +56,7 @@ public class SimpleAPDU {
     }
 
     public void demo() throws Exception {
-        setCmd((byte) 0x01, Util.hexStringToByteArray("414243444546FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"));
+        setCmd((byte) 0x01, Util.hexStringToByteArray("414243444546"));
         setCmd((byte) 0x02, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
         setCmd((byte) 0x04, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));
         setCmd((byte) 0x7F, Util.hexStringToByteArray("303132333435363738393A3B3C3D3E3F"));

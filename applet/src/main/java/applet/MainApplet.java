@@ -9,7 +9,7 @@ public class MainApplet extends javacard.framework.Applet {
 	private SecretList storage = new SecretList();
 	// PINs (so that it cannot be easily flipped)
 	private CustomPIN pin = null;
-	private byte authenticated = AUTH_FALSE;
+	private byte authenticated = AUTH_TRUE;
 	final static byte AUTH_TRUE = (byte) 0xf0e9;
 	final static byte AUTH_FALSE = (byte) 0x1111;
 	// SecureChannel related stuff
@@ -73,6 +73,7 @@ public class MainApplet extends javacard.framework.Applet {
 
 	public void process(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
+		short dataLen = apdu.setIncomingAndReceive();
 
 		// ignore the applet select command dispatched to the process
 		if (selectingApplet()) {
