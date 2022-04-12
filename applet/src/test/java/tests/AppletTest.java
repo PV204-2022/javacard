@@ -3,7 +3,6 @@ package tests;
 import applet.Configuration;
 import cardTools.CardManager;
 import cardTools.CardType;
-import org.junit.Assert;
 import org.junit.jupiter.api.*;
 
 import javax.smartcardio.CommandAPDU;
@@ -39,6 +38,16 @@ public class AppletTest extends BaseTest {
 
     @AfterEach
     public void tearDownMethod() throws Exception {
+    }
+
+    @Test
+    public void testAuthSuccess() throws Exception {
+        final CommandAPDU cmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU responseAPDU = connectAndSend(cmd);
+        Assertions.assertNotNull(responseAPDU);
+        Assertions.assertEquals(responseAPDU.getData()[0], (byte) 1);
     }
 
     @Test
