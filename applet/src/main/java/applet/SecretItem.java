@@ -5,7 +5,7 @@ import javacard.framework.ISOException;
 import javacard.framework.Util;
 
 /**
- * Stores exactly one value
+ * Stores exactly one key value pair.
  */
 public class SecretItem {
   private byte key = 0;
@@ -13,15 +13,15 @@ public class SecretItem {
   private byte valueLength = 0;
 
   /**
-   * Just a basic constructor
+   * Construct SecretItem.
    */
   public SecretItem() {
     value = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
   }
 
   /**
-   * A Getter for value attribute
-   * @param dst - Where do we put it
+   * Get value of the secret.
+   * @param dst - the destination where to copy the value
    */
   public void getValue(byte[] dst) {
     // length is always the same
@@ -30,16 +30,15 @@ public class SecretItem {
   }
 
   /**
-   * A Getter for key attribute
-   * @param dst - Where do we put it
+   * Get key of the secret.
    */
   public byte getKey() {
     return key;
   }
 
   /**
-   * A Setter for value attribute
-   * @param src - What do we set to
+   * Set value of the secret.
+   * @param src - the source from where to copy the value
    */
   public void setValue(byte[] src) {
     if (src.length > Configuration.SECRET_VALUE_MAX_LENGTH) {
@@ -51,21 +50,24 @@ public class SecretItem {
   }
 
   /**
-   * A Setter for key attribute
-   * @param src - What do we set to
+   * Set key of the secret.
+   * @param key - the key to set
    */
-  public void setKey(byte src) {
-    key = src;
+  public void setKey(byte key) {
+    this.key = key;
   }
 
+  /**
+   * Delete the value of the secret.
+   */
   public void deleteValue() {
     Util.arrayFillNonAtomic(value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, (byte) 0);
     this.valueLength = 0;
   }
 
   /**
-   * A Getter
-   * @return used length of value
+   * Get length of the secret value.
+   * @return the length of the secret value
    */
   public byte getValueLength() {
       return valueLength;

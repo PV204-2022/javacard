@@ -1,18 +1,16 @@
 package applet;
 
-import javacard.framework.ISO7816;
-import javacard.framework.ISOException;
 import javacard.framework.Util;
 
 /**
  * One instance stores all secrets on a particular card
  */
 public class SecretList {
-  // this array stores the secrets objects
+
   private final SecretItem[] secrets;
 
   /**
-   * Just a basic constructor
+   * Construct SecretList.
    */
   public SecretList() {
       secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
@@ -22,38 +20,46 @@ public class SecretList {
   }
 
   /**
-   * A Getter for secrets
-   * @param key - Which key to retrieve
-   * @param dst - Where to put it
+   * Get the secret value.
+   * @param key - which key to retrieve.
+   * @param dst - where to copy the value of the secret
+   * @return the length of the value
    */
   public byte getSecret(byte key, byte[] dst) {
+    byte valueLength = -1;
     for (byte i = 0; i < secrets.length; i++) {
-      if (secrets[i].getKey() == key) {
+      if (secrets[i].getKey() == key && valueLength == -1) {
         secrets[i].getValue(dst);
-        return secrets[i].getValueLength();
+        valueLength = secrets[i].getValueLength();
       }
     }
-    return -1;
+    return valueLength;
   }
 
   /**
-   * A Setter for secrets
-   * @param key - Which key to set
-   * @param value - To what value
+   * Set the secret key and value.
+   * @param key - which key to set
+   * @param value - to what value
+   * @return whether the secret was set or not
    */
   public boolean setSecret(byte key, byte[] value) {
+    boolean set = false;
     for (byte i = 0; i < secrets.length; i++) {
-      if (secrets[i].getKey() == key) {
+      if (secrets[i].getKey() == key && !set) {
         secrets[i].setValue(value);
-        return true;
+        set = true;
       }
     }
-    return false;
+    if (!set) {
+      set = createSecret(key, value);
+    }
+    return set;
   }
 
   /**
-   * A basic list method
-   * @param dst - Where to put it
+   * Get list of secret keys.
+   * @param dst - where to copy the keys
+   * @return the number of keys
    */
   public byte listSecrets(byte[] dst) {
     for (byte i = 0; i < secrets.length; i++) {
@@ -64,33 +70,39 @@ public class SecretList {
     return (byte) secrets.length;
   }
 
-  public byte deleteSecret(byte key) {
+  /**
+   * Delete secret.
+   * @param key - the key of the secret to delete
+   * @return whether the secret was deleted or not
+   */
+  public boolean deleteSecret(byte key) {
+    boolean deleted = false;
     for (byte i = 0; i < secrets.length; i++) {
-      if (secrets[i].getKey() == key) {
+      if (secrets[i].getKey() == key && !deleted) {
         secrets[i].setKey((byte) 0);
         secrets[i].deleteValue();
+        deleted = true;
       }
     }
-    return 1;
+    return deleted;
   }
 
   /**
-   * Populates the first empty Secret available
-   * @param key - How is it going to be named
-   * @param value - What do we store
-   * @return - Which index is it stored at
+   * Store key and value to the first empty secret available.
+   * @param key - which key to set
+   * @param value - to what value
+   * @return - whether the secret was stored or not
    */
-  public byte createSecret(byte key, byte[] value) {
+  private boolean createSecret(byte key, byte[] value) {
+    boolean created = false;
     for (byte i = 0; i < secrets.length; i++) {
       // this is considered "Empty"
-      if (secrets[i].getKey() == 0 && secrets[i].getValueLength() == 0) {
+      if (secrets[i].getKey() == 0 && secrets[i].getValueLength() == 0 && !created) {
         secrets[i].setKey(key);
         secrets[i].setValue(value);
-
-        return i;
-      };
+        created = true;
+      }
     }
-
-    return -1;
+    return created;
   }
 }

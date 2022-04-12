@@ -1,4 +1,4 @@
-package simulator;
+package app;
 
 import applet.MainApplet;
 import cardTools.CardManager;
@@ -8,11 +8,10 @@ import cardTools.Util;
 import javax.smartcardio.CommandAPDU;
 import javax.smartcardio.ResponseAPDU;
 import java.io.ByteArrayOutputStream;
-import java.io.Console;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-public class SimpleAPDU {
+public class PcApp {
     private static String APPLET_AID = "73696d706c656170706c6574";
 
     private static final String STR_APDU_GET = "B050";
@@ -31,7 +30,7 @@ public class SimpleAPDU {
 
     public static void main(String[] args) {
         try {
-            SimpleAPDU main = new SimpleAPDU();
+            PcApp main = new PcApp();
             main.setup(CARD_TYPE.SIMULATED);
             main.demo();
         } catch (Exception ex) {
@@ -78,6 +77,9 @@ public class SimpleAPDU {
         getCmdPrint((byte) 0x01);
         getCmdPrint((byte) 0x7F);
 
+        // Get nonexistent key.
+        getCmdPrint((byte) 0x08);
+
         listCmdPrint();
         delCmdPrint((byte) 0x04);
         listCmdPrint();
@@ -107,11 +109,16 @@ public class SimpleAPDU {
     }
 
     public void getCmdPrint(byte key) throws Exception {
-        System.out.println(
-            "Get Value for Key " +
-            String.format("%02X: ", key) +
-            new String(getCmd(key), StandardCharsets.UTF_8)
-        );
+        byte[] data = getCmd(key);
+        if (data != null) {
+            System.out.println(
+                "Get Value for Key " +
+                String.format("\"%02X\": ", key) +
+                "\"" + new String(data, StandardCharsets.UTF_8) + "\""
+            );
+        } else {
+            System.out.println("FAILED to Get Value for Key " + String.format("%02X", key));
+        }
     }
 
     public boolean setCmd(byte key, byte[] value) throws Exception {
@@ -122,15 +129,15 @@ public class SimpleAPDU {
         commandStream.write(value.length);
         commandStream.write(value);
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
-        return response.getSW() == APDU_SUCCESS;
+        return response.getSW() == APDU_SUCCESS && response.getData()[0] != 0;
     }
 
     public void setCmdPrint(byte key, byte[] value) throws Exception {
         boolean result = setCmd(key, value);
         System.out.print(
             "Set Key:Value to " +
-            String.format("%02X:", key) +
-            new String(value, StandardCharsets.UTF_8)
+            String.format("\"%02X\":", key) +
+            "\"" + new String(value, StandardCharsets.UTF_8) + "\""
         );
         if (result) {
             System.out.println(" SUCCESS");
@@ -161,23 +168,31 @@ public class SimpleAPDU {
         byte[] listResult = listCmd();
         System.out.print("List of Keys: ");
         for (byte key : listResult) {
-            System.out.print(String.format("%02X ", key));
+            System.out.print(String.format("\"%02X\"", key));
+            if (key != listResult[listResult.length-1]) {
+                System.out.print(", ");
+            }
         }
         System.out.println("");
     }
 
-    public void delCmd(byte key) throws Exception {
+    public boolean delCmd(byte key) throws Exception {
         ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
         commandStream.write(Util.hexStringToByteArray(STR_APDU_DEL));
         commandStream.write(key);
         commandStream.write(new byte[] { 0, 0 });
         ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
-        byte[] data = response.getData();
+        return response.getSW() == APDU_SUCCESS && response.getData()[0] == 1;
     }
 
     public void delCmdPrint(byte key) throws Exception {
-        delCmd(key);
-        System.out.println("Delete Key " + String.format("%02X ", key));
+        boolean result = delCmd(key);
+        System.out.print("Delete Key " + String.format("\"%02X\" ", key));
+        if (result) {
+            System.out.println("SUCCESS");
+        } else {
+            System.out.println("FAILED");
+        }
     }
 
     public void authCmd() throws Exception {

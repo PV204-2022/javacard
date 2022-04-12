@@ -39,18 +39,15 @@ public class MainApplet extends javacard.framework.Applet {
 	final static byte INS_AUTH = (byte) 0x53;
 
 	/**
-	 * Method installing the MainApplet
-	 * @param bArray the array containing installation parameters
-	 * @param bOffset the starting offset in bArray
-	 * @param bLength the length in bytes of the data parameter in bArray
+	 * Method installing the MainApplet.
 	 */
 	public static void install(byte[] bArray, short bOffset, byte bLength) {
 		new MainApplet(bArray, bOffset, bLength);
 	}
 
 	/**
-	 * MainApplet default constructor Only this class's install method should
-	 * create the applet object.
+	 * MainApplet default constructor.
+	 * Only this class's install method should create the applet object.
 	 */
 	public MainApplet(byte[] buffer, short offset, byte length)	{
 		// initialize media encryption stuff
@@ -137,8 +134,8 @@ public class MainApplet extends javacard.framework.Applet {
 	}
 
 	/**
-	 * Set provided key to the provided value
-	 * @param apdu - an apdu
+	 * Set provided key to the provided value.
+	 * @param apdu - APDU command
 	 */
 	private void Set(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
@@ -158,17 +155,16 @@ public class MainApplet extends javacard.framework.Applet {
 			ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 		}
 		if (!storage.setSecret(key, tempSized)) {
-			storage.createSecret(key, tempSized);
+			bytesWritten = 0;
 		}
-
 		short offset = (short) (ISO7816.OFFSET_CDATA + dataLen);
 		Util.arrayCopy(new byte[] { (byte) bytesWritten }, (short) 0, apduBuffer, offset, (short) 1);
 		apdu.setOutgoingAndSend(offset, (short) 1);
 	}
 
 	/**
-	 * Get the value of the provided key
-	 * @param apdu
+	 * Get the value for the provided key.
+	 * @param apdu - APDU command
 	 */
 	private void Get(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
@@ -177,10 +173,7 @@ public class MainApplet extends javacard.framework.Applet {
 		byte[] temp = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
 		byte length = storage.getSecret(key, temp);
 		if (length < 0) {
-			short offset = (short) (ISO7816.OFFSET_CDATA);
-			Util.arrayCopy(new byte[] { (byte) 0 }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1);
-			apdu.setOutgoingAndSend(offset, (short) 1);
-			return;
+			ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 		}
 
 		mediaCipherDec.init(mediaKey, Cipher.MODE_DECRYPT);
@@ -190,8 +183,8 @@ public class MainApplet extends javacard.framework.Applet {
 	}
 
 	/**
-	 * List all keys
-	 * @param apdu
+	 * List all stored keys.
+	 * @param apdu - APDU command
 	 */
 	private void List(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
@@ -203,19 +196,25 @@ public class MainApplet extends javacard.framework.Applet {
 		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesWritten);
 	}
 
+	/**
+	 * Delete key and value for provided key.
+	 * @param apdu - APDU command
+	 */
 	private void Delete(APDU apdu) {
 		// get the buffer with incoming APDU
 		byte[] apduBuffer = apdu.getBuffer();
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
-		byte status = storage.deleteSecret(key);
-		Util.arrayCopy(new byte[] { (byte) status }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1);
+		boolean deleteSuccess = storage.deleteSecret(key);
+		Util.arrayCopy(
+			new byte[] { (byte) (deleteSuccess ? 1 : 0 ) }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1
+		);
 		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, (short) 1);
 	}
 
 	/**
-	 * Basic (duress) PIN logic
-	 * @param apdu
+	 * Verify PIN.
+	 * @param apdu - APDU command
 	 */
 	private void verifyPIN(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
@@ -236,14 +235,5 @@ public class MainApplet extends javacard.framework.Applet {
 				Util.arrayCopyNonAtomic(pinValue, ISO7816.OFFSET_CDATA, apduBuffer, (short) 0, dataLen);
 				apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, dataLen);
 		}
-	}
-
-	public boolean select() {
-		return true;
-	}
-
-	@Override
-	public void deselect() {
-		return;
 	}
 }
