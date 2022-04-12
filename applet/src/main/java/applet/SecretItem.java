@@ -1,27 +1,27 @@
 package applet;
 
+import javacard.framework.ISO7816;
+import javacard.framework.ISOException;
 import javacard.framework.Util;
 
 /**
- * Stores exactly one value
+ * Stores exactly one key value pair.
  */
 public class SecretItem {
-  private final byte[] key;
+  private byte key = 0;
   private final byte[] value;
-  private int valueLength = 0;
-  private int keyLength = 0;
+  private byte valueLength = 0;
 
   /**
-   * Just a basic constructor
+   * Construct SecretItem.
    */
   public SecretItem() {
-    key = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
     value = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
   }
 
   /**
-   * A Getter for value attribute
-   * @param dst - Where do we put it
+   * Get value of the secret.
+   * @param dst - the destination where to copy the value
    */
   public void getValue(byte[] dst) {
     // length is always the same
@@ -30,48 +30,46 @@ public class SecretItem {
   }
 
   /**
-   * A Getter for key attribute
-   * @param dst - Where do we put it
+   * Get key of the secret.
    */
-  public void getKey(byte[] dst) {
-    Util.arrayCopyNonAtomic(key, (short) 0, dst, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
+  public byte getKey() {
+    return key;
   }
 
   /**
-   * A Setter for value attribute
-   * @param src - What do we set to
+   * Set value of the secret.
+   * @param src - the source from where to copy the value
    */
   public void setValue(byte[] src) {
     if (src.length > Configuration.SECRET_VALUE_MAX_LENGTH) {
-      throw new RuntimeException("Value is too long!");
+      ISOException.throwIt(ISO7816.SW_WRONG_DATA);
     }
 
-    this.valueLength = src.length;
+    this.valueLength = (byte) src.length;
     Util.arrayCopyNonAtomic(src, (short) 0, value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH);
   }
 
   /**
-   * A Setter for key attribute
-   * @param src - What do we set to
+   * Set key of the secret.
+   * @param key - the key to set
    */
-  public void setKey(byte[] src) {
-    if (src.length > Configuration.SECRET_KEY_MAX_LENGHT) {
-      throw new RuntimeException("Key is too long!");
-    }
-
-    this.keyLength = src.length;
-    Util.arrayCopyNonAtomic(src, (short) 0, key, (short) 0, Configuration.SECRET_KEY_MAX_LENGHT);
+  public void setKey(byte key) {
+    this.key = key;
   }
 
   /**
-   * A Getter
-   * @return used length of value
+   * Delete the value of the secret.
    */
-  public int getValueLength() {
-    return valueLength;
+  public void deleteValue() {
+    Util.arrayFillNonAtomic(value, (short) 0, Configuration.SECRET_VALUE_MAX_LENGTH, (byte) 0);
+    this.valueLength = 0;
   }
 
-  public int getKeyLength() {
-    return keyLength;
+  /**
+   * Get length of the secret value.
+   * @return the length of the secret value
+   */
+  public byte getValueLength() {
+      return valueLength;
   }
 }

@@ -6,82 +6,103 @@ import javacard.framework.Util;
  * One instance stores all secrets on a particular card
  */
 public class SecretList {
-  // this array stores the secrets objects
+
   private final SecretItem[] secrets;
 
   /**
-   * Just a basic constructor
+   * Construct SecretList.
    */
-  public SecretList(short capacity) {
-    secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
+  public SecretList() {
+      secrets = new SecretItem[Configuration.SECRET_MAX_COUNT];
+      for (byte i = 0; i < Configuration.SECRET_MAX_COUNT; i++) {
+          secrets[i] = new SecretItem();
+      }
   }
 
   /**
-   * A Getter for secrets
-   * @param key - Which key to retrieve
-   * @param dst - Where to put it
+   * Get the secret value.
+   * @param key - which key to retrieve.
+   * @param dst - where to copy the value of the secret
+   * @return the length of the value
    */
-  public void getSecret(byte[] key, byte[] dst) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
-
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
-
-      if (currentKey == key) {
+  public byte getSecret(byte key, byte[] dst) {
+    byte valueLength = -1;
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key && valueLength == -1) {
         secrets[i].getValue(dst);
+        valueLength = secrets[i].getValueLength();
       }
     }
+    return valueLength;
   }
 
   /**
-   * A Setter for secrets
-   * @param key - Which key to set
-   * @param src - To what value
+   * Set the secret key and value.
+   * @param key - which key to set
+   * @param value - to what value
+   * @return whether the secret was set or not
    */
-  public void setSecret(byte[] key, byte[] value, byte[] src) {
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
-    
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
-      
-      if (currentKey == key) {
-        secrets[i].setValue(src);
+  public boolean setSecret(byte key, byte[] value) {
+    boolean set = false;
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key && !set) {
+        secrets[i].setValue(value);
+        set = true;
       }
     }
+    if (!set) {
+      set = createSecret(key, value);
+    }
+    return set;
   }
 
   /**
-   * A basic list method
-   * @param dst - Where to put it
+   * Get list of secret keys.
+   * @param dst - where to copy the keys
+   * @return the number of keys
    */
-  public void listSecrets(byte[] dst) {
-    dst = new byte[Configuration.SECRET_KEY_MAX_LENGHT * Configuration.SECRET_MAX_COUNT];
-    byte[] currentKey = new byte[Configuration.SECRET_KEY_MAX_LENGHT];
-    
-    for (int i = 0; i < secrets.length; i++) {
-      secrets[i].getKey(currentKey);
+  public byte listSecrets(byte[] dst) {
+    for (byte i = 0; i < secrets.length; i++) {
+      byte[] currentKey = new byte[] { secrets[i].getKey() };
       // fill the "dst" array by shifting offset in each iteration
-      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) (0 * i), Configuration.SECRET_KEY_MAX_LENGHT);
+      Util.arrayCopyNonAtomic(currentKey, (short) 0, dst, (short) i, (byte) 1);
     }
+    return (byte) secrets.length;
   }
 
   /**
-   * Populates the first empty Secret available
-   * @param key - How is it going to be named
-   * @param value - What do we store
-   * @return - Which index is it stored at
+   * Delete secret.
+   * @param key - the key of the secret to delete
+   * @return whether the secret was deleted or not
    */
-  public int createSecret(byte[] key, byte[] value) {
-    for (int i = 0; i < secrets.length; i++) {
+  public boolean deleteSecret(byte key) {
+    boolean deleted = false;
+    for (byte i = 0; i < secrets.length; i++) {
+      if (secrets[i].getKey() == key && !deleted) {
+        secrets[i].setKey((byte) 0);
+        secrets[i].deleteValue();
+        deleted = true;
+      }
+    }
+    return deleted;
+  }
+
+  /**
+   * Store key and value to the first empty secret available.
+   * @param key - which key to set
+   * @param value - to what value
+   * @return - whether the secret was stored or not
+   */
+  private boolean createSecret(byte key, byte[] value) {
+    boolean created = false;
+    for (byte i = 0; i < secrets.length; i++) {
       // this is considered "Empty"
-      if (secrets[i].getValueLength() == 0 && secrets[i].getKeyLength() == 0) {
+      if (secrets[i].getKey() == 0 && secrets[i].getValueLength() == 0 && !created) {
         secrets[i].setKey(key);
         secrets[i].setValue(value);
-
-        return i;
-      };
+        created = true;
+      }
     }
-
-    return -1;
+    return created;
   }
 }
