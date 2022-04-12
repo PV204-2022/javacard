@@ -7,15 +7,16 @@ import javacardx.crypto.*;
 public class MainApplet extends javacard.framework.Applet {
 	// storage for all key:value pairs, capacity is defined in "Configuration" class
 	private SecretList storage = new SecretList();
-	// PINs (so that it cannot be easily flipped)
+	// PINs/mediaEncryption/SecureChannel (so that it cannot be easily flipped)
 	private CustomPIN pin = null;
-	private byte authenticated = AUTH_TRUE;
-	final static byte AUTH_TRUE = (byte) 0xf0e9;
-	final static byte AUTH_FALSE = (byte) 0x1111;
-	// SecureChannel related stuff
+	private byte secured = WEIRD_FALSE;
+	private byte authenticated = WEIRD_FALSE;
+	final static byte WEIRD_TRUE = (byte) 0xf0e9;
+	final static byte WEIRD_FALSE = (byte) 0x1111;
 	private Cipher mediaCipherEnc = null;
 	private Cipher mediaCipherDec = null;
 	private AESKey mediaKey = null;
+	private SecureChannel channel;
 
 	// TODO REMOVE
 	final static short SW_Exception = (short) 0xff01;
@@ -37,6 +38,7 @@ public class MainApplet extends javacard.framework.Applet {
 	final static byte INS_DEL = (byte) 0x54;
 	final static byte INS_LIST = (byte) 0x52;
 	final static byte INS_AUTH = (byte) 0x53;
+	final
 
 	/**
 	 * Method installing the MainApplet.
@@ -65,12 +67,23 @@ public class MainApplet extends javacard.framework.Applet {
 		pin.initPin(Configuration.PIN, (byte) Configuration.PIN.length);
 		pin.initDuressPin(Configuration.DURESS_PIN, (byte) Configuration.DURESS_PIN.length);
 
+		// initialize SecureChannel
+		channel = new SecureChannel();
+
 		register();
 	}
 
 	public void process(APDU apdu) {
-		byte[] apduBuffer = apdu.getBuffer();
-		short dataLen = apdu.setIncomingAndReceive();
+		byte[] apduBuffer;
+		byte[] encApduBuffer;
+
+		if (secured == WEIRD_FALSE) {
+			channel.establish(apdu);
+			secured = WEIRD_TRUE;
+		}
+
+		encApduBuffer = apdu.getBuffer();
+		channel.decrypt(encApduBuffer, apduBuffer);
 
 		// ignore the applet select command dispatched to the process
 		if (selectingApplet()) {
@@ -81,7 +94,7 @@ public class MainApplet extends javacard.framework.Applet {
 		try {
 			if (apduBuffer[ISO7816.OFFSET_CLA] == CLA_MAINAPPLET) {
 				// in order to continue, one needs to be authenticated (send correct PIN)
-				if (authenticated != AUTH_TRUE && apduBuffer[ISO7816.OFFSET_INS] != INS_AUTH) {
+				if (authenticated != WEIRD_TRUE && apduBuffer[ISO7816.OFFSET_INS] != INS_AUTH) {
 					ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
 				}
 
@@ -138,7 +151,10 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu - APDU command
 	 */
 	private void Set(APDU apdu) {
-		byte[] apduBuffer = apdu.getBuffer();
+		byte[] encApduBuffer = apdu.getBuffer();
+		byte[] apduBuffer = new byte[encApduBuffer.length];
+		channel.decrypt(encApduBuffer, apduBuffer);
+
 		short dataLen = apdu.getIncomingLength();
 		if (dataLen > Configuration.SECRET_VALUE_MAX_LENGTH) {
 			ISOException.throwIt(ISO7816.SW_WRONG_DATA);
@@ -157,8 +173,10 @@ public class MainApplet extends javacard.framework.Applet {
 		if (!storage.setSecret(key, tempSized)) {
 			bytesWritten = 0;
 		}
+
 		short offset = (short) (ISO7816.OFFSET_CDATA + dataLen);
-		Util.arrayCopy(new byte[] { (byte) bytesWritten }, (short) 0, apduBuffer, offset, (short) 1);
+		channel.encrypt(apduBuffer, encApduBuffer);
+		Util.arrayCopy(new byte[] { (byte) bytesWritten }, (short) 0, encApduBuffer, offset, (short) 1);
 		apdu.setOutgoingAndSend(offset, (short) 1);
 	}
 
@@ -167,7 +185,9 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu - APDU command
 	 */
 	private void Get(APDU apdu) {
-		byte[] apduBuffer = apdu.getBuffer();
+		byte[] encApduBuffer = apdu.getBuffer();
+		byte[] apduBuffer = new byte[encApduBuffer.length];
+		channel.decrypt(encApduBuffer, apduBuffer);
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
 		byte[] temp = new byte[Configuration.SECRET_VALUE_MAX_LENGTH];
@@ -187,12 +207,15 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu - APDU command
 	 */
 	private void List(APDU apdu) {
-		byte[] apduBuffer = apdu.getBuffer();
+		byte[] encApduBuffer = apdu.getBuffer();
+		byte[] apduBuffer = new byte[encApduBuffer.length];
+		channel.decrypt(apduBuffer, encApduBuffer);
 
 		byte [] temp = new byte[Configuration.SECRET_MAX_COUNT];
 		byte bytesWritten = storage.listSecrets(temp);
 		Util.arrayCopy(temp, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, bytesWritten);
 
+		channel.encrypt(apduBuffer, encApduBuffer);
 		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, bytesWritten);
 	}
 
@@ -201,14 +224,17 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu - APDU command
 	 */
 	private void Delete(APDU apdu) {
-		// get the buffer with incoming APDU
-		byte[] apduBuffer = apdu.getBuffer();
+		byte[] encApduBuffer = apdu.getBuffer();
+		byte[] apduBuffer = new byte[encApduBuffer.length];
+		channel.decrypt(encApduBuffer, apduBuffer);
 		byte key = apduBuffer[ISO7816.OFFSET_P1];
 
 		boolean deleteSuccess = storage.deleteSecret(key);
 		Util.arrayCopy(
 			new byte[] { (byte) (deleteSuccess ? 1 : 0 ) }, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1
 		);
+
+		channel.encrypt(apduBuffer, encApduBuffer);
 		apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, (short) 1);
 	}
 
@@ -217,23 +243,35 @@ public class MainApplet extends javacard.framework.Applet {
 	 * @param apdu - APDU command
 	 */
 	private void verifyPIN(APDU apdu) {
-		byte[] apduBuffer = apdu.getBuffer();
+		byte[] encApduBuffer = apdu.getBuffer();
+		byte[] apduBuffer = new byte[encApduBuffer.length];
 		short dataLen = apdu.setIncomingAndReceive();
+		channel.decrypt(encApduBuffer, apduBuffer);
+
 		byte[] pinValue = null;
 		Util.arrayCopy(apduBuffer, ISO7816.OFFSET_CDATA, pinValue, (short) 0, dataLen);
 
 		switch (pin.check(pinValue, (byte) dataLen)) {
 			case CustomPIN.PIN_STATUS_DURESS:
 				mediaKey.clearKey();
-				authenticated = AUTH_FALSE;
+				authenticated = WEIRD_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 			case CustomPIN.PIN_STATUS_INCORRECT:
-				authenticated = AUTH_FALSE;
+				authenticated = WEIRD_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 			case CustomPIN.PIN_STATUS_CORRECT:
-				authenticated = AUTH_TRUE;
+				authenticated = WEIRD_TRUE;
 				Util.arrayCopyNonAtomic(pinValue, ISO7816.OFFSET_CDATA, apduBuffer, (short) 0, dataLen);
+				channel.encrypt(apduBuffer, encApduBuffer);
 				apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, dataLen);
 		}
+	}
+
+	/**
+	 * Simple method for establishment of SecureChannel
+	 * @param apdu
+	 */
+	private void establishSecureChannel(APDU apdu) {
+		channel.establish(apdu);
 	}
 }
