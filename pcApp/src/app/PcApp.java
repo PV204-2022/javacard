@@ -58,6 +58,10 @@ public class PcApp {
     }
 
     public void demo() throws Exception {
+        // authenticate
+        byte[] pin = new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 };
+        authCmd(pin);
+
         // Add four key:value pairs.
         setCmdPrint((byte) 0x01, Util.hexStringToByteArray("313233343536")); // 123456
         setCmdPrint((byte) 0x02, Util.hexStringToByteArray("30313233343536373839414243444546")); // 0123456789ABCDEF
@@ -195,7 +199,13 @@ public class PcApp {
         }
     }
 
-    public void authCmd() throws Exception {
+    public void authCmd(byte[] pin) throws Exception {
+        ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
+        commandStream.write(Util.hexStringToByteArray(STR_APDU_AUTH));
+        commandStream.write((byte) 0); // empty P1
+        commandStream.write(pin);
+        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()))
 
+        return response.getSW() == APDU_SUCCESS && response.getData()[0] == 1;
     }
 }

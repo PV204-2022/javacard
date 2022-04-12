@@ -9,7 +9,7 @@ public class MainApplet extends javacard.framework.Applet {
 	private SecretList storage = new SecretList();
 	// PINs (so that it cannot be easily flipped)
 	private CustomPIN pin = null;
-	private byte authenticated = AUTH_TRUE;
+	private byte[] authenticated;
 	final static byte AUTH_TRUE = (byte) 0xf0e9;
 	final static byte AUTH_FALSE = (byte) 0x1111;
 	// SecureChannel related stuff
@@ -65,6 +65,9 @@ public class MainApplet extends javacard.framework.Applet {
 		pin.initPin(Configuration.PIN, (byte) Configuration.PIN.length);
 		pin.initDuressPin(Configuration.DURESS_PIN, (byte) Configuration.DURESS_PIN.length);
 
+		authenticated = JCSystem.makeTransientByteArray((short) 1, JCSystem.CLEAR_ON_RESET);
+		authenticated[0] = AUTH_FALSE;
+
 		register();
 	}
 
@@ -81,7 +84,7 @@ public class MainApplet extends javacard.framework.Applet {
 		try {
 			if (apduBuffer[ISO7816.OFFSET_CLA] == CLA_MAINAPPLET) {
 				// in order to continue, one needs to be authenticated (send correct PIN)
-				if (authenticated != AUTH_TRUE && apduBuffer[ISO7816.OFFSET_INS] != INS_AUTH) {
+				if (authenticated[0] != AUTH_TRUE && apduBuffer[ISO7816.OFFSET_INS] != INS_AUTH) {
 					ISOException.throwIt(ISO7816.SW_SECURITY_STATUS_NOT_SATISFIED);
 				}
 
@@ -225,14 +228,15 @@ public class MainApplet extends javacard.framework.Applet {
 		switch (pin.check(pinValue, (byte) dataLen)) {
 			case CustomPIN.PIN_STATUS_DURESS:
 				mediaKey.clearKey();
-				authenticated = AUTH_FALSE;
+				authenticated[0] = AUTH_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 			case CustomPIN.PIN_STATUS_INCORRECT:
-				authenticated = AUTH_FALSE;
+				authenticated[0] = AUTH_FALSE;
 				ISOException.throwIt(ISO7816.SW_WRONG_DATA);
 			case CustomPIN.PIN_STATUS_CORRECT:
-				authenticated = AUTH_TRUE;
-				Util.arrayCopyNonAtomic(pinValue, ISO7816.OFFSET_CDATA, apduBuffer, (short) 0, dataLen);
+				authenticated[0] = AUTH_TRUE;
+				byte[] temp = {(byte) 1};
+				Util.arrayCopyNonAtomic(temp, (short) 0, apduBuffer, ISO7816.OFFSET_CDATA, (short) 1);
 				apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, dataLen);
 		}
 	}
