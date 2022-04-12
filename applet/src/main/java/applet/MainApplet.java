@@ -266,12 +266,4 @@ public class MainApplet extends javacard.framework.Applet {
 				apdu.setOutgoingAndSend(ISO7816.OFFSET_CDATA, dataLen);
 		}
 	}
-
-	/**
-	 * Simple method for establishment of SecureChannel
-	 * @param apdu
-	 */
-	private void establishSecureChannel(APDU apdu) {
-		channel.establish(apdu);
-	}
 }
