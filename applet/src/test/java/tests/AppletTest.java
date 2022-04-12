@@ -45,17 +45,24 @@ public class AppletTest extends BaseTest {
         final CommandAPDU cmd = new CommandAPDU(
                 0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
         );
-        final ResponseAPDU responseAPDU = connectAndSend(cmd);
+        final ResponseAPDU responseAPDU = cardManager.transmit(cmd);
         Assertions.assertNotNull(responseAPDU);
         Assertions.assertEquals(responseAPDU.getData()[0], (byte) 1);
     }
 
     @Test
     public void testSetSuccess() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+            0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         final CommandAPDU cmd = new CommandAPDU(
             0xB0, 0x51, 0X01, 0, new byte[] { 0x40, 0x41, 0x42, 0x43, 0x44, 0x45 }
         );
-        final ResponseAPDU responseAPDU = connectAndSend(cmd);
+        final ResponseAPDU responseAPDU = cardManager.transmit(cmd);
         Assertions.assertNotNull(responseAPDU);
         Assertions.assertEquals(0x9000, responseAPDU.getSW());
         Assertions.assertEquals(responseAPDU.getData()[0], Configuration.SECRET_VALUE_MAX_LENGTH);
@@ -63,26 +70,47 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testSetFailureBigKey() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         final CommandAPDU cmd = new CommandAPDU(
             0xB0, 0x51, Configuration.SECRET_KEY_MAX, 0, new byte[] { 0x40, 0x41, 0x42, 0x43, 0x44, 0x45 }
         );
         final ResponseAPDU responseAPDU = connectAndSend(cmd);
         Assertions.assertNotNull(responseAPDU);
-        Assertions.assertEquals(0x6A80, responseAPDU.getSW());
+        Assertions.assertEquals(0x6982, responseAPDU.getSW());
     }
 
     @Test
     public void testSetFailureLongValue() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] tooLongValue = new byte[65];
         Arrays.fill(tooLongValue, (byte) 0x20);
         final CommandAPDU cmd = new CommandAPDU(0xB0, 0x51, 0X90, 0, tooLongValue );
         final ResponseAPDU responseAPDU = connectAndSend(cmd);
         Assertions.assertNotNull(responseAPDU);
-        Assertions.assertEquals(0x6A80, responseAPDU.getSW());
+        Assertions.assertEquals(0x6982, responseAPDU.getSW());
     }
 
     @Test
     public void testSetFailureTooMuchSecrets() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         for (int i = 1; i <= Configuration.SECRET_MAX_COUNT; i++) {
             final CommandAPDU cmd = new CommandAPDU(
                 0xB0, 0x51, i, 0, new byte[]{(byte) (0x40 + i), 0x41, 0x42, 0x43, 0x44, 0x45}
@@ -103,6 +131,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testGetSuccess() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] value = new byte[] { 0x40, 0x41, 0x42, 0x43, 0x44, 0x45 };
         final CommandAPDU cmdSet = new CommandAPDU(
             0xB0, 0x51, 0X01, 0, value
@@ -122,6 +157,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testGetFailureDoesNotExist() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         final CommandAPDU cmdGet = new CommandAPDU(0xB0, 0x50, 0X01, 0);
         final ResponseAPDU responseAPDUGet = cardManager.transmit(cmdGet);
         Assertions.assertNotNull(responseAPDUGet);
@@ -130,6 +172,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testListSuccessEmpty() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] emptyList = new byte[Configuration.SECRET_MAX_COUNT];
         Arrays.fill(emptyList, (byte) 0x00);
         final CommandAPDU cmdList = new CommandAPDU(0xB0, 0x52, 0, 0);
@@ -141,6 +190,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testListSuccessOneElement() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] value = new byte[] { 0x40, 0x41, 0x42, 0x43, 0x44, 0x45 };
         final CommandAPDU cmdSet = new CommandAPDU(
                 0xB0, 0x51, 0X01, 0, value
@@ -162,6 +218,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testListSuccessMultipleElements() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] keyList = new byte[Configuration.SECRET_MAX_COUNT];
         for (int i = 1; i <= Configuration.SECRET_MAX_COUNT; i++) {
             keyList[i - 1] = (byte) i;
@@ -184,6 +247,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testDeleteSuccess() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         byte[] value = new byte[] { 0x40, 0x41, 0x42, 0x43, 0x44, 0x45 };
         final CommandAPDU cmdSet = new CommandAPDU(
                 0xB0, 0x51, 0X01, 0, value
@@ -207,6 +277,13 @@ public class AppletTest extends BaseTest {
 
     @Test
     public void testDeleteFailure() throws Exception {
+        final CommandAPDU authCmd = new CommandAPDU(
+                0xB0, 0x53, 0, 0, new byte[] { (byte) 1, (byte) 2, (byte) 3, (byte) 4, (byte) 5, (byte) 6, (byte) 7, (byte) 8 }
+        );
+        final ResponseAPDU authResponseAPDU = cardManager.transmit(authCmd);
+        Assertions.assertNotNull(authResponseAPDU);
+        Assertions.assertEquals(authResponseAPDU.getData()[0], (byte) 1);
+
         final CommandAPDU cmdDelete = new CommandAPDU(0xB0, 0x54, 0x01, 0);
         final ResponseAPDU responseAPDUDel = cardManager.transmit(cmdDelete);
         Assertions.assertNotNull(responseAPDUDel);

@@ -221,8 +221,8 @@ public class MainApplet extends javacard.framework.Applet {
 	 */
 	private void verifyPIN(APDU apdu) {
 		byte[] apduBuffer = apdu.getBuffer();
-		short dataLen = apdu.setIncomingAndReceive();
-		byte[] pinValue = null;
+		short dataLen = apdu.getIncomingLength();
+		byte[] pinValue = new byte[dataLen];
 		Util.arrayCopy(apduBuffer, ISO7816.OFFSET_CDATA, pinValue, (short) 0, dataLen);
 
 		switch (pin.check(pinValue, (byte) dataLen)) {

@@ -39,7 +39,7 @@ public class PcApp {
     }
 
     public void setup(CARD_TYPE cardType) throws Exception {
-        cardManager = new CardManager(false, Util.hexStringToByteArray(APPLET_AID));
+        cardManager = new CardManager(true, Util.hexStringToByteArray(APPLET_AID));
         final RunConfig runConfig = RunConfig.getDefaultConfig();
         if (cardType == CARD_TYPE.SIMULATED) {
             runConfig.setAppletToSimulate(MainApplet.class);
@@ -199,12 +199,14 @@ public class PcApp {
         }
     }
 
-    public void authCmd(byte[] pin) throws Exception {
+    public boolean authCmd(byte[] pin) throws Exception {
         ByteArrayOutputStream commandStream = new ByteArrayOutputStream();
         commandStream.write(Util.hexStringToByteArray(STR_APDU_AUTH));
         commandStream.write((byte) 0); // empty P1
+        commandStream.write((byte) 0); // empty P2
+        commandStream.write((byte) pin.length); // empty P2
         commandStream.write(pin);
-        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()))
+        ResponseAPDU response = this.cardManager.transmit(new CommandAPDU(commandStream.toByteArray()));
 
         return response.getSW() == APDU_SUCCESS && response.getData()[0] == 1;
     }
